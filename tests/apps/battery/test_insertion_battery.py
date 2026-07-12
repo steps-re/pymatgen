@@ -72,6 +72,24 @@ class TestInsertionElectrode:
         assert self.ie_MVO.get_max_muO2() == approx(-4.93552791875)
         assert self.ie_MVO.get_min_muO2() == approx(-11.06599657)
 
+    def test_get_muO2_uses_both_charge_and_discharge(self):
+        # Regression test: get_max_muO2/get_min_muO2 both had a copy-paste bug
+        # where the muO2_charge branch read from pair.muO2_discharge instead of
+        # pair.muO2_charge, so charge-side chempots were ignored and
+        # discharge-side chempots were double-counted. Use a minimal fake
+        # voltage pair (bypassing the real InsertionVoltagePair construction)
+        # with disjoint charge/discharge chempot ranges so the bug is visible.
+        class FakePair:
+            voltage = 1.0
+            muO2_charge = [{"chempot": -1.0}, {"chempot": -2.0}]
+            muO2_discharge = [{"chempot": -5.0}, {"chempot": -6.0}]
+
+        electrode = object.__new__(InsertionElectrode)
+        electrode.voltage_pairs = (FakePair(),)
+
+        assert electrode.get_max_muO2() == approx(-1.0)
+        assert electrode.get_min_muO2() == approx(-6.0)
+
     def test_entries(self):
         # test that the proper number of sub-electrodes are returned
         assert len(self.ie_LTO.get_sub_electrodes(adjacent_only=False, include_myself=True)) == 3
@@ -79,6 +97,26 @@ class TestInsertionElectrode:
 
     def test_get_all_entries(self):
         self.ie_LTO.get_all_entries()
+
+    def test_get_entries_charge_to_discharge_false_returns_reversed_list(self):
+        # Regression test: get_stable_entries/get_unstable_entries/get_all_entries
+        # returned None instead of a reversed list when charge_to_discharge=False,
+        # because they called list.reverse() (an in-place mutator that returns
+        # None) directly in the return statement.
+        forward_stable = self.ie_LTO.get_stable_entries(charge_to_discharge=True)
+        reversed_stable = self.ie_LTO.get_stable_entries(charge_to_discharge=False)
+        assert reversed_stable is not None
+        assert reversed_stable == list(reversed(forward_stable))
+
+        forward_unstable = self.ie_LTO.get_unstable_entries(charge_to_discharge=True)
+        reversed_unstable = self.ie_LTO.get_unstable_entries(charge_to_discharge=False)
+        assert reversed_unstable is not None
+        assert reversed_unstable == list(reversed(forward_unstable))
+
+        forward_all = self.ie_LTO.get_all_entries(charge_to_discharge=True)
+        reversed_all = self.ie_LTO.get_all_entries(charge_to_discharge=False)
+        assert reversed_all is not None
+        assert reversed_all == list(reversed(forward_all))
 
     def test_as_from_dict(self):
         dct = self.ie_LTO.as_dict()

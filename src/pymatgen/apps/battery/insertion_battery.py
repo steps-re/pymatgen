@@ -130,7 +130,7 @@ class InsertionElectrode(AbstractElectrode):
             working ion.
         """
         list_copy = list(self.stable_entries)
-        return list_copy if charge_to_discharge else list_copy.reverse()
+        return list_copy if charge_to_discharge else list(reversed(list_copy))
 
     def get_unstable_entries(self, charge_to_discharge=True):
         """Get the unstable entries for the electrode.
@@ -144,7 +144,7 @@ class InsertionElectrode(AbstractElectrode):
             the working ion.
         """
         list_copy = list(self.unstable_entries)
-        return list_copy if charge_to_discharge else list_copy.reverse()
+        return list_copy if charge_to_discharge else list(reversed(list_copy))
 
     def get_all_entries(self, charge_to_discharge=True):
         """Return all entries input for the electrode.
@@ -165,7 +165,7 @@ class InsertionElectrode(AbstractElectrode):
             all_entries,
             key=lambda e: e.composition.get_atomic_fraction(self.working_ion),
         )
-        return all_entries if charge_to_discharge else all_entries.reverse()
+        return all_entries if charge_to_discharge else list(reversed(all_entries))
 
     @property
     def fully_charged_entry(self):
@@ -232,7 +232,7 @@ class InsertionElectrode(AbstractElectrode):
             if pair.muO2_discharge is not None:
                 data.extend([d["chempot"] for d in pair.muO2_discharge])
             if pair.muO2_charge is not None:
-                data.extend([d["chempot"] for d in pair.muO2_discharge])
+                data.extend([d["chempot"] for d in pair.muO2_charge])
         return max(data) if len(data) > 0 else None
 
     def get_min_muO2(self, min_voltage=None, max_voltage=None):
@@ -253,7 +253,7 @@ class InsertionElectrode(AbstractElectrode):
             if pair.muO2_discharge is not None:
                 data.extend([d["chempot"] for d in pair.muO2_discharge])
             if pair.muO2_charge is not None:
-                data.extend([d["chempot"] for d in pair.muO2_discharge])
+                data.extend([d["chempot"] for d in pair.muO2_charge])
         return min(data) if len(data) > 0 else None
 
     def get_sub_electrodes(self, adjacent_only=True, include_myself=True):
