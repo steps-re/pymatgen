@@ -59,6 +59,32 @@ class TestFuncUtils:
                 options_dict={"max_csm": max_csm, "nn": 2},
             )
 
+    def test_csm_finite_ratio_function_smoothstep(self):
+        # Regression test: CSMFiniteRatioFunction.smoothstep called the
+        # module-level smootherstep() function (a copy-paste from the
+        # smootherstep method defined just above it) instead of smoothstep().
+        # smoothstep is f(x)=3x^2-2x^3 and smootherstep is the different
+        # function f(x)=6x^5-15x^4+10x^3, so this silently returned the wrong
+        # ratio function's values whenever function="smoothstep" was
+        # requested. Values below are the closed-form smoothstep result
+        # (inverse=True, i.e. 1 - (3t^2 - 2t^3) with t=(x-lower)/(upper-lower)),
+        # confirmed distinct from smootherstep's result at the same points.
+        csm_smoothstep = CSMFiniteRatioFunction(
+            function="smoothstep",
+            options_dict={"lower_csm": 1, "upper_csm": 4},
+        )
+        assert csm_smoothstep.evaluate(1) == approx(1.0)
+        assert csm_smoothstep.evaluate(2.5) == approx(0.5)
+        assert csm_smoothstep.evaluate(4) == approx(0.0)
+        assert csm_smoothstep.evaluate(2) == approx(0.7407407407407407)
+
+        csm_smootherstep = CSMFiniteRatioFunction(
+            function="smootherstep",
+            options_dict={"lower_csm": 1, "upper_csm": 4},
+        )
+        # smoothstep and smootherstep must disagree away from the symmetric midpoint
+        assert csm_smoothstep.evaluate(2) != approx(csm_smootherstep.evaluate(2))
+
     def test_csm_infinite_ratio_function(self):
         max_csm = 8
         with pytest.raises(

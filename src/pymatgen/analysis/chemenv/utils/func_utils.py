@@ -275,7 +275,7 @@ class CSMFiniteRatioFunction(AbstractRatioFunction):
         Returns:
             Result of the ratio function applied to the CSM values.
         """
-        return smootherstep(
+        return smoothstep(
             vals,
             edges=[self.__dict__["lower_csm"], self.__dict__["upper_csm"]],
             inverse=True,
