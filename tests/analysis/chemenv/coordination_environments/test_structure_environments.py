@@ -143,6 +143,27 @@ class TestStructureEnvironments(MatSciTest):
         assert ce != ce2
         assert ce != ce2
 
+    def test_get_csms_skips_unset_neighbors_sets(self):
+        # get_csms used to crash with a TypeError when a coordination number bucket
+        # in ce_list contained a None placeholder (added by add_neighbors_set for a
+        # neighbors set whose ChemicalEnvironments has not been computed yet).
+        with open(f"{TEST_DIR}/se_mp-7000.json", "rb") as file:
+            dct = orjson.loads(file.read())
+
+        struct_envs = StructureEnvironments.from_dict(dct)
+        isite = 6
+        cn = 4
+        mp_symbol = "T:4"
+
+        # Simulate an in-progress computation: a neighbors set has been registered
+        # for this site/cn but its ChemicalEnvironments has not been set yet, so
+        # ce_list holds a None placeholder alongside the already-computed entries.
+        struct_envs.ce_list[isite][cn].append(None)
+
+        csms = struct_envs.get_csms(isite, mp_symbol)
+        assert None not in csms
+        assert len(csms) == 1
+
     def test_light_structure_environments(self):
         with open(f"{TEST_DIR}/se_mp-7000.json", "rb") as file:
             dct = orjson.loads(file.read())
@@ -244,6 +265,26 @@ class TestStructureEnvironments(MatSciTest):
         assert lse_multi.coordination_environments[isite][0]["csm"] == approx(0.009887784240541068)
         assert lse_multi.coordination_environments[isite][0]["ce_fraction"] == approx(1)
         assert lse_multi.coordination_environments[isite][0]["ce_symbol"] == "T:4"
+
+    def test_site_has_clear_environment_number_of_ces(self):
+        # site_has_clear_environment used to raise a KeyError for the "number_of_ces"
+        # condition target, since it looked up "number_of_ces" on the single CE dict
+        # returned by max(), rather than counting the CEs available for the site.
+        with open(f"{TEST_DIR}/se_mp-7000.json", "rb") as file:
+            dct = orjson.loads(file.read())
+
+        struct_envs = StructureEnvironments.from_dict(dct)
+        strategy = SimplestChemenvStrategy()
+        lse = LightStructureEnvironments.from_structure_environments(
+            structure_environments=struct_envs, strategy=strategy, valences="undefined"
+        )
+        isite = 6
+        assert len(lse.coordination_environments[isite]) == 1
+
+        # maxnumber above the actual number of CEs for the site should be "clear"
+        assert lse.site_has_clear_environment(isite, conditions=[{"target": "number_of_ces", "maxnumber": 2}])
+        # maxnumber below the actual number of CEs for the site should not be "clear"
+        assert not lse.site_has_clear_environment(isite, conditions=[{"target": "number_of_ces", "maxnumber": 0}])
 
     def test_from_structure_environments(self):
         # https://github.com/materialsproject/pymatgen/issues/2756

@@ -637,7 +637,7 @@ class StructureEnvironments(MSONable):
         cn = symbol_cn_mapping[mp_symbol]
         if cn not in self.ce_list[isite]:
             return []
-        return [envs[mp_symbol] for envs in self.ce_list[isite][cn]]
+        return [envs[mp_symbol] for envs in self.ce_list[isite][cn] if envs is not None]
 
     def plot_csm_and_maps(self, isite, max_csm=8.0):
         """
@@ -1866,7 +1866,7 @@ class LightStructureEnvironments(MSONable):
                 if ce[target] > condition["maxvalue"]:
                     return False
             elif target == "number_of_ces":
-                if ce[target] > condition["maxnumber"]:
+                if len(self.coordination_environments[isite]) > condition["maxnumber"]:
                     return False
             else:
                 raise ValueError(f"Target {target!r} for condition of clear environment is not allowed")
