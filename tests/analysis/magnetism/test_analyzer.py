@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from shutil import which
 
 import pytest
@@ -306,6 +307,46 @@ class TestMagneticStructureEnumerator:
         enumerator = MagneticStructureEnumerator(structure, transformation_kwargs=None)
         assert enumerator.transformation_kwargs["timeout"] == 5
         assert enumerator.transformation_kwargs["check_ordered_symmetry"] is False
+
+
+class TestMagneticStructureEnumeratorDuplicatePruning:
+    # Not gated on ENUMLIB_PRESENT: this test calls _generate_ordered_structures
+    # directly on a manually-built MagneticStructureEnumerator, so it doesn't need
+    # enumlib to generate orderings.
+    def test_duplicate_orderings_are_removed(self):
+        # Regression test: the duplicate-pruning block in _generate_ordered_structures
+        # was gated on `if len(structures_to_remove) == 0`, so it only ever ran when
+        # there was nothing to remove. Duplicate orderings were silently kept instead
+        # of being pruned. Build a list with one exact duplicate and confirm it's
+        # dropped. Bypasses __init__ (and enumlib) since only the pruning logic in
+        # _generate_ordered_structures is under test.
+        base = Structure.from_spacegroup(225, Lattice.cubic(4.2), ["Ni", "O"], [[0, 0, 0], [0.5, 0.5, 0.5]])
+        duplicate = base.copy()
+        distinct = Structure(
+            Lattice.from_parameters(4.2, 4.6, 5.0, 80, 85, 95),
+            ["Ni", "O"],
+            [[0, 0, 0], [0.5, 0.5, 0.5]],
+        )
+        structures = [base, duplicate, distinct]
+        origins = ["fm", "fm_dupe", "afm"]
+
+        enumerator = object.__new__(MagneticStructureEnumerator)
+        enumerator.logger = logging.getLogger("test")
+        enumerator.truncate_by_symmetry = False
+        enumerator.transformations = {}
+        enumerator.sanitized_structure = base
+        enumerator.num_orderings = 64
+        enumerator.input_analyzer = CollinearMagneticStructureAnalyzer(base, overwrite_magmom_mode="none")
+        enumerator.ordered_structures = list(structures)
+        enumerator.ordered_structure_origins = list(origins)
+
+        out_structures, out_origins = MagneticStructureEnumerator._generate_ordered_structures(enumerator, base, {})
+
+        assert len(out_structures) == 2
+        assert len(out_origins) == 2
+        assert "afm" in out_origins
+        # exactly one of the two duplicate "fm" orderings should survive
+        assert sum(o.startswith("fm") for o in out_origins) == 1
 
 
 class TestMagneticDeformation:
