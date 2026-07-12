@@ -4,7 +4,9 @@ import numpy as np
 from numpy.testing import assert_allclose
 from pytest import approx
 
-from pymatgen.analysis.eos import EOS, NumericalEOS
+import pytest
+
+from pymatgen.analysis.eos import EOS, EOSError, NumericalEOS
 from pymatgen.util.testing import MatSciTest
 
 
@@ -428,6 +430,23 @@ class TestEOS(MatSciTest):
         assert_allclose(self.num_eos_fit.b0, 0.55, atol=1e-2)
         assert_allclose(self.num_eos_fit.b0_GPa, 89.0370727, atol=1)
         assert_allclose(self.num_eos_fit.b1, 4.344039, atol=1)
+
+    def test_numerical_eos_minimum_at_boundary_raises(self):
+        # Regression test: NumericalEOS.fit() located the minimum-energy point
+        # in the volume-sorted data, then unconditionally indexed the points
+        # immediately before and after it to bracket the minimum. For a
+        # monotonic energy-volume series (minimum energy at the largest or
+        # smallest volume, i.e. no bracketed minimum), this either raised an
+        # uncontrolled IndexError (minimum at the largest volume) or silently
+        # wrapped around to the wrong volume via negative indexing (minimum
+        # at the smallest volume). Both should now raise a clear EOSError.
+        monotonic_volumes = [10, 20, 30, 40, 50, 60, 70]
+        monotonic_energies = [7, 6, 5, 4, 3, 2, 1]
+        with pytest.raises(EOSError, match="does not bracket a minimum"):
+            NumericalEOS(monotonic_volumes, monotonic_energies).fit()
+
+        with pytest.raises(EOSError, match="does not bracket a minimum"):
+            NumericalEOS(monotonic_volumes, monotonic_energies[::-1]).fit()
 
     def test_eos_func(self):
         # list vs np.array arguments

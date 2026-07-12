@@ -477,6 +477,11 @@ class NumericalEOS(PolynomialEOS):
         e_v = sorted(e_v, key=lambda x: x[1])
         # index of minimum energy tuple in the volume sorted list
         e_min_idx = e_v.index(e_min)
+        if e_min_idx in (0, len(e_v) - 1):
+            raise EOSError(
+                "The minimum energy volume is at the edge of the volume range, "
+                "so the energy-volume data does not bracket a minimum."
+            )
         # the volume lower than the volume corresponding to minimum energy
         v_before = e_v[e_min_idx - 1][1]
         # the volume higher than the volume corresponding to minimum energy
