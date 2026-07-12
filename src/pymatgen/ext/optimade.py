@@ -221,10 +221,10 @@ class OptimadeRester:
                 filters.append(f"({nelements=})")
 
         if chemical_formula_anonymous:
-            filters.append(f"({chemical_formula_anonymous=})")
+            filters.append(f'(chemical_formula_anonymous="{chemical_formula_anonymous}")')
 
         if chemical_formula_hill:
-            filters.append(f"({chemical_formula_hill=})")
+            filters.append(f'(chemical_formula_hill="{chemical_formula_hill}")')
 
         return " AND ".join(filters)
 

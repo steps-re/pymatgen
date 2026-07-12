@@ -98,6 +98,12 @@ class TestOptimade(MatSciTest):
         assert "mp" in optimade.aliases
 
     def test_build_filter(self):
+        # OPTIMADE filter strings require string literals to be double-quoted
+        # (see the "elements" clause below, which was already correct); the
+        # chemical_formula_anonymous/chemical_formula_hill clauses used to be
+        # built with Python's f-string {var=} debug syntax, which renders
+        # string values with repr()'s single quotes and is not valid OPTIMADE
+        # filter syntax.
         assert OptimadeRester._build_filter(
             elements=["Ga", "N"],
             nelements=2,
@@ -108,8 +114,8 @@ class TestOptimade(MatSciTest):
             '(elements HAS ALL "Ga", "N")'
             " AND (nsites>=1 AND nsites<=100)"
             " AND (nelements=2)"
-            " AND (chemical_formula_anonymous='A2B')"
-            " AND (chemical_formula_hill='GaN')"
+            ' AND (chemical_formula_anonymous="A2B")'
+            ' AND (chemical_formula_hill="GaN")'
         )
 
         assert OptimadeRester._build_filter(
@@ -122,6 +128,6 @@ class TestOptimade(MatSciTest):
             '(elements HAS ALL "C", "H", "O")'
             " AND (nsites>=1 AND nsites<=100)"
             " AND (nelements>=3 AND nelements<=4)"
-            " AND (chemical_formula_anonymous='A4B3C')"
-            " AND (chemical_formula_hill='C4H3O')"
+            ' AND (chemical_formula_anonymous="A4B3C")'
+            ' AND (chemical_formula_hill="C4H3O")'
         )
