@@ -448,6 +448,28 @@ class TestConnectedComponent(MatSciTest):
         assert isinstance(cc.periodicity_vectors, list)
         assert cc.periodicity_vectors[0].dtype is np.dtype(np.int64)
 
+    def test_periodicity_cycle_basis_sets_periodicity_vectors(self):
+        # Regression test: compute_periodicity_cycle_basis returned without
+        # setting self._periodicity_vectors in the branch where 3 linearly
+        # independent vectors are found from the simple graph cycles (the
+        # common case for a genuinely 3D-periodic component). The second
+        # early-return path further down the method (reached only via the
+        # parallel-edges fallback) correctly assigns the vectors before
+        # returning, highlighting that this was an omission rather than
+        # intentional. A single self-bonded node with 3 independent deltas
+        # is exactly the case the first (buggy) early return handles.
+        env_node = EnvironmentNode(central_site="Si", i_central_site=0, ce_symbol="O:6")
+        graph = nx.MultiGraph()
+        graph.add_node(env_node)
+        graph.add_edge(env_node, env_node, start=env_node.isite, end=env_node.isite, delta=(1, 0, 0), ligands=[])
+        graph.add_edge(env_node, env_node, start=env_node.isite, end=env_node.isite, delta=(0, 1, 0), ligands=[])
+        graph.add_edge(env_node, env_node, start=env_node.isite, end=env_node.isite, delta=(0, 0, 1), ligands=[])
+
+        cc = ConnectedComponent(graph=graph)
+        cc.compute_periodicity_cycle_basis()
+        assert cc._periodicity_vectors is not None
+        assert len(cc._periodicity_vectors) == 3
+
     def test_real_systems(self):
         # Initialize geometry and connectivity finders
         strategy = SimplestChemenvStrategy()

@@ -491,6 +491,7 @@ class ConnectedComponent(MSONable):
             all_deltas.extend(this_cycle_deltas)
             all_deltas = get_linearly_independent_vectors(all_deltas)
             if len(all_deltas) == 3:
+                self._periodicity_vectors = all_deltas
                 return
         # One has to consider pairs of nodes with parallel edges (these are not considered in the simple graph cycles)
         edges = simple_graph.edges()
