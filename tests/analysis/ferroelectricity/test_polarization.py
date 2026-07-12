@@ -174,6 +174,50 @@ class TestPolarization(MatSciTest):
         assert_allclose(p_ions[0].ravel().tolist(), self.p_ions[0].ravel().tolist())
         assert_allclose(p_ions[-1].ravel().tolist(), self.p_ions[-1].ravel().tolist())
 
+    def test_get_pelecs_and_pions_convert_to_muC_per_cm2(self):
+        # Regression test: get_pelecs_and_pions(convert_to_muC_per_cm2=True)
+        # used np.matmul(units, p_elecs.T) to scale each structure's dipole
+        # moment by its cell volume, but units has shape (N,) and p_elecs.T
+        # has shape (3, N) -- a genuine matrix product, not the intended
+        # per-structure elementwise scaling, and shape-invalid whenever the
+        # number of structures isn't 3. The fixture here has 10 structures.
+        p_elecs, p_ions = self.polarization.get_pelecs_and_pions(convert_to_muC_per_cm2=True)
+        assert p_elecs.shape == self.p_elecs.shape
+        assert p_ions.shape == self.p_ions.shape
+
+        volumes = np.array([struct.volume for struct in self.structures])
+        e_to_muC = -1.6021766e-13
+        cm2_to_A2 = 1e16
+        units = (1 / volumes) * e_to_muC * cm2_to_A2
+        assert_allclose(p_elecs, self.p_elecs * units[:, None])
+        assert_allclose(p_ions, self.p_ions * units[:, None])
+
+    def test_smoothness_partial_spline_failure(self):
+        # Regression test: smoothness() indexed every component of the
+        # same_branch_splines() result without checking for None, unlike the
+        # sibling method max_spline_jumps() which does. same_branch_splines
+        # returns None for a component when UnivariateSpline fitting fails
+        # for it (e.g. too few points), so smoothness() crashed with a
+        # TypeError instead of leaving that component as None like
+        # max_spline_jumps() does.
+        import pymatgen.analysis.ferroelectricity.polarization as polarization_mod
+
+        original = polarization_mod.Polarization.same_branch_splines
+
+        def patched(self, convert_to_muC_per_cm2=True, all_in_polar=True):
+            sp_a, sp_b, sp_c = original(self, convert_to_muC_per_cm2, all_in_polar)
+            return sp_a, None, sp_c
+
+        polarization_mod.Polarization.same_branch_splines = patched
+        try:
+            result = self.polarization.smoothness(convert_to_muC_per_cm2=True, all_in_polar=False)
+        finally:
+            polarization_mod.Polarization.same_branch_splines = original
+
+        assert result[1] is None
+        assert result[0] is not None
+        assert result[2] is not None
+
     def test_get_same_branch_polarization_data(self):
         same_branch = self.polarization.get_same_branch_polarization_data(
             convert_to_muC_per_cm2=True, all_in_polar=False

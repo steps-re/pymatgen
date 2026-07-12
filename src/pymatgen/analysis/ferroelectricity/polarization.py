@@ -220,8 +220,8 @@ class Polarization:
             units = 1 / np.array(volumes)
             units *= e_to_muC * cm2_to_A2
 
-            p_elecs = np.matmul(units, p_elecs)
-            p_ions = np.matmul(units, p_ions)
+            p_elecs = p_elecs * units
+            p_ions = p_ions * units
 
             p_elecs, p_ions = p_elecs.T, p_ions.T
 
@@ -419,9 +419,12 @@ class Polarization:
         except Exception:
             logger.exception("Something went wrong.")
             return None
-        sp_latt = [sp[i](range(L)) for i in range(3)]
-        diff = [sp_latt[i] - tot[:, i].ravel() for i in range(3)]
-        return [np.sqrt(np.sum(np.square(diff[i])) / L) for i in range(3)]
+        rms = [None, None, None]
+        for i in range(3):
+            if sp[i] is not None:
+                diff = sp[i](range(L)) - tot[:, i].ravel()
+                rms[i] = np.sqrt(np.sum(np.square(diff)) / L)
+        return rms
 
 
 class EnergyTrend:
